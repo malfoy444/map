@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Fixed Commute Planner — Mockup</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root { --accent:#2563eb; --muted:#6b7280; }
+  body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 16px; }
+  header { display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:12px; flex-wrap:wrap; }
+  h1 { font-size: 20px; margin:0; }
+  .controls { display:grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap:10px; align-items:end; }
+  label { display:block; font-size:.85rem; color:#374151; margin-bottom:4px; }
+  input, select, button { width:100%; box-sizing:border-box; font-size:1rem; padding:.5rem .6rem; border:1px solid #d1d5db; border-radius:.5rem; }
+  button { background:white; cursor:pointer; }
+  button.primary { background: var(--accent); color:white; border-color:var(--accent); }
+  button:hover { border-color: var(--accent); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .muted { color: var(--muted); font-size:.9rem; }
+  .cards { margin-top:14px; }
+  .card { border:1px solid #e5e7eb; border-radius:.75rem; padding:12px; margin:10px 0; box-shadow:0 1px 0 rgba(0,0,0,.02); }
+  .best { border-color: var(--accent); box-shadow:0 0 0 2px rgba(37,99,235,.15); }
+  .badge { font-size:.75rem; padding:.15rem .4rem; border-radius:.4rem; border:1px solid #d1d5db; }
+  .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .legs { margin:.5rem 0 0 .75rem; }
+  .legs li { margin:.25rem 0; }
+  .warn { color:#b45309; }
+  .sep { height:1px; background:#eee; margin:.5rem 0; }
+  .pill { padding:.25rem .5rem; border-radius:9999px; background:#f3f4f6; font-size:.8rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🚆 Fixed Commute Planner — Mockup</h1>
+  <div class="muted">Single-file demo (with calendars, scenarios, dynamic links)</div>
+</header>
+
+<div class="controls">
+  <div>
+    <label for="preset">Direction</label>
+    <select id="preset">
+      <option value="outbound">Home → bol</option>
+      <option value="return">bol → Home</option>
+    </select>
+  </div>
+  <div>
+    <label for="scenario">Disruption scenario</label>
+    <select id="scenario">
+      <option value="normal">Normal (no disruptions)</option>
+      <option value="woerden_issue">Woerden/Gouda issue</option>
+      <option value="rotterdam_issue">Rotterdam issue</option>
+      <option value="rotterdam_hard">Rotterdam + Schiedam out (metro→Den Haag)</option>
+    </select>
+  </div>
+  <div>
+    <label for="date">Date</label>
+    <input type="date" id="date">
+  </div>
+  <div>
+    <label for="time">Time</label>
+    <input type="time" id="time" step="60">
+  </div>
+  <div>
+    <label for="buffer">Min transfer buffer (min)</label>
+    <input type="number" id="buffer" min="0" max="15" value="4">
+  </div>
+  <div>
+    <label for="window">Search window</label>
+    <select id="window">
+      <option value="120">Next 2 hours</option>
+      <option value="60">Next 1 hour</option>
+      <option value="180">Next 3 hours</option>
+    </select>
+  </div>
+  <div>
+    <label for="bikemins">Bike time (flex)</label>
+    <input type="number" id="bikemins" min="5" max="30" value="10">
+  </div>
+  <div>
+    <label>&nbsp;</label>
+    <button id="go" class="primary">Find trips</button>
+  </div>
+</div>
+
+<div class="row" style="margin-top:8px;">
+  <div class="pill" id="tzinfo"></div>
+  <div class="muted">Tip: change scenario to see detour paths appear when defaults are blocked.</div>
+</div>
+
+<div class="sep"></div>
+
+<div id="results" class="cards"></div>
+
+<script>
+const DATA = {
+  timezone: "Europe/Amsterdam",
+  default_transfer_minutes: 4,
+  calendars: {
+    WEEKDAY: { days: [1,2,3,4,5] },
+    WEEKEND: { days: [0,6] },
+    HOLIDAY: { days: [], dates: ["2025-04-27","2025-12-25","2025-12-26"] },
+    RET_SUMMER: {
+      yearly_ranges: [ { from: "--07-01", to: "--08-31" } ],
+      ranges: [ { from: "2025-07-08", to: "2025-08-25" } ]
+    }
+  },
+  scenarios: [
+    { id: "normal", label: "Normal", default: true },
+    { id: "woerden_issue", label: "Woerden/Gouda issue" },
+    { id: "rotterdam_issue", label: "Rotterdam issue" },
+    { id: "rotterdam_hard", label: "Rotterdam + Schiedam out" }
+  ],
+  templates: {
+    ns_direct: "https://www.ns.nl/reisplanner/#/?vertrek={fromLabel}&vertrektype=treinstation&aankomst={toLabel}&aankomsttype=treinstation&type=vertrek&tijd={iso}&firstMileModality=PUBLIC_TRANSPORT&lastMileModality=PUBLIC_TRANSPORT",
+    ret_metro: "https://www.ret.nl/home/reizen/reisplanner/details/{fromSlug}/n-a/{toSlug}/{date_dmy}/{time_hhmm}/vertrek/snelste-route/1-2-0-3/geen-extra-overstaptijd/0/0/niet-extra-toegankelijk.html"
+  },
+  labelMaps: {
+    ns: {
+      schiedam_c: "Schiedam%20Centrum",
+      rotterdam_c: "Rotterdam%20Centraal",
+      utrecht_c: "Utrecht%20Centraal",
+      denhaag_c: "Den%20Haag%20Centraal",
+      amsterdam_zuid: "Amsterdam%20Zuid"
+    },
+    ret: {
+      pernis_metro: "metrostation-pernis_pernis-rotterdam",
+      schiedam_c: "metrostation-schiedam-centrum_schiedam",
+      beurs: "beurs_rotterdam",
+      denhaag_c: "den-haag-centraal_den-haag"
+    }
+  },
+  stops: {
+    home: { name: "Home" },
+    pernis_metro: { name: "Pernis (Metro)" },
+    schiedam_c: { name: "Schiedam Centrum" },
+    rotterdam_c: { name: "Rotterdam Centraal" },
+    amsterdam_zuid: { name: "Amsterdam Zuid" },
+    denhaag_c: { name: "Den Haag Centraal" },
+    utrecht_c: { name: "Utrecht Centraal" },
+    papendorp_zuid: { name: "Papendorp Zuid" },
+    bol: { name: "bol" }
+  },
+  legs: [
+    { id:"bike_home_pernis", from:"home", to:"pernis_metro", mode:"bike", behavior:"flex", duration_minutes:10 },
+    { id:"metro_pernis_schiedam", from:"pernis_metro", to:"schiedam_c", mode:"metro", carrier:"ret", linkTemplate:"ret_metro",
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"06:10",arr:"06:22"},{dep:"06:20",arr:"06:32"},{dep:"06:30",arr:"06:42"},{dep:"06:40",arr:"06:52"},{dep:"06:50",arr:"07:02"},{dep:"07:00",arr:"07:12"} ],
+        WEEKEND:[ {dep:"07:00",arr:"07:12"},{dep:"07:15",arr:"07:27"} ],
+        RET_SUMMER:[ {dep:"06:15",arr:"06:27"},{dep:"06:30",arr:"06:42"},{dep:"06:45",arr:"06:57"} ]
+      }
+    },
+    { id:"train_schiedam_rotterdam", from:"schiedam_c", to:"rotterdam_c", mode:"train", carrier:"ns", linkTemplate:"ns_direct",
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"06:22",arr:"06:28"},{dep:"06:37",arr:"06:43"},{dep:"06:52",arr:"06:58"},{dep:"07:07",arr:"07:13"} ],
+        WEEKEND:[ {dep:"07:07",arr:"07:13"},{dep:"07:22",arr:"07:28"} ]
+      }
+    },
+    { id:"train_rotterdam_utrecht_direct", from:"rotterdam_c", to:"utrecht_c", mode:"train", carrier:"ns", linkTemplate:"ns_direct",
+      blocked_by:["woerden_issue","rotterdam_issue"],
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"06:28",arr:"07:03"},{dep:"06:58",arr:"07:34"},{dep:"07:28",arr:"08:03"} ],
+        WEEKEND:[ {dep:"07:28",arr:"08:05"},{dep:"07:58",arr:"08:36"} ]
+      }
+    },
+    { id:"train_rotterdam_amsterdamzuid", from:"rotterdam_c", to:"amsterdam_zuid", mode:"train", carrier:"ns", linkTemplate:"ns_direct",
+      blocked_by:["rotterdam_issue"],
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"06:19",arr:"07:09"},{dep:"06:49",arr:"07:39"} ],
+        WEEKEND:[ {dep:"07:19",arr:"08:09"} ]
+      }
+    },
+    { id:"train_amsterdamzuid_utrecht", from:"amsterdam_zuid", to:"utrecht_c", mode:"train", carrier:"ns", linkTemplate:"ns_direct",
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"07:15",arr:"07:45"},{dep:"07:30",arr:"08:00"} ],
+        WEEKEND:[ {dep:"08:15",arr:"08:45"} ]
+      }
+    },
+    { id:"train_rotterdam_denhaag", from:"rotterdam_c", to:"denhaag_c", mode:"train", carrier:"ns", linkTemplate:"ns_direct",
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"06:25",arr:"06:50"},{dep:"06:55",arr:"07:20"} ],
+        WEEKEND:[ {dep:"07:25",arr:"07:50"} ]
+      }
+    },
+    { id:"train_denhaag_utrecht", from:"denhaag_c", to:"utrecht_c", mode:"train", carrier:"ns", linkTemplate:"ns_direct",
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"07:00",arr:"07:38"},{dep:"07:30",arr:"08:08"} ],
+        WEEKEND:[ {dep:"08:00",arr:"08:38"} ]
+      }
+    },
+    { id:"bus_shuttle_utrecht_bol", from:"utrecht_c", to:"bol", mode:"bus", carrier:"shuttle", linkTemplate:"ns_direct",
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"07:15",arr:"07:27"},{dep:"07:30",arr:"07:42"},{dep:"07:45",arr:"07:57"} ],
+        WEEKEND:[ ]
+      }
+    },
+    { id:"bus_qbuzz_utrecht_papendorp", from:"utrecht_c", to:"papendorp_zuid", mode:"bus", carrier:"qbuzz", linkTemplate:"ns_direct",
+      tripsByCalendar:{
+        WEEKDAY:[ {dep:"07:12",arr:"07:22"},{dep:"07:24",arr:"07:34"} ],
+        WEEKEND:[ {dep:"08:00",arr:"08:12"} ]
+      }
+    },
+    { id:"walk_papendorp_bol", from:"papendorp_zuid", to:"bol", mode:"walk", behavior:"flex", duration_minutes:8 }
+  ],
+  paths: {
+    normal: [
+      ["bike_home_pernis","metro_pernis_schiedam","train_schiedam_rotterdam","train_rotterdam_utrecht_direct","bus_shuttle_utrecht_bol"],
+      ["bike_home_pernis","metro_pernis_schiedam","train_schiedam_rotterdam","train_rotterdam_utrecht_direct","bus_qbuzz_utrecht_papendorp","walk_papendorp_bol"]
+    ],
+    woerden_issue: [
+      ["bike_home_pernis","metro_pernis_schiedam","train_schiedam_rotterdam","train_rotterdam_amsterdamzuid","train_amsterdamzuid_utrecht","bus_shuttle_utrecht_bol"],
+      ["bike_home_pernis","metro_pernis_schiedam","train_schiedam_rotterdam","train_rotterdam_denhaag","train_denhaag_utrecht","bus_shuttle_utrecht_bol"]
+    ],
+    rotterdam_issue: [
+      ["bike_home_pernis","metro_pernis_schiedam","train_schiedam_rotterdam","train_rotterdam_denhaag","train_denhaag_utrecht","bus_shuttle_utrecht_bol"]
+    ],
+    rotterdam_hard: [
+      ["bike_home_pernis","metro_pernis_schiedam","train_schiedam_rotterdam","train_rotterdam_denhaag","train_denhaag_utrecht","bus_shuttle_utrecht_bol"]
+    ]
+  }
+};
+
+function pad(n){return String(n).padStart(2,'0');}
+function fmtHM(d){ return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+function ymd(d){ return d.toISOString().slice(0,10); }
+function toDate(d,t){ return new Date(d + 'T' + t + ':00'); }
+function addMin(d,m){ return new Date(d.getTime() + m*60000); }
+function parseYMD(s){ const [Y,M,D]=s.split('-').map(Number); return new Date(Y, M-1, D); }
+function inRange(date, fromStr, toStr){
+  const y = date.getFullYear();
+  const toDateX = (s)=> s.startsWith('--') ? new Date(y, Number(s.slice(2,4))-1, Number(s.slice(5,7))) : parseYMD(s);
+  let a = toDateX(fromStr), b = toDateX(toStr);
+  if (a > b && fromStr.startsWith('--') && toStr.startsWith('--')){
+    const endYear = new Date(y,11,31), startYear = new Date(y,0,1);
+    return (date>=a && date<=endYear) || (date>=startYear && date<=b);
+  }
+  return date>=a && date<=b;
+}
+function pickCalendarKey(date, calendars, candidateKeys){
+  for (const k of candidateKeys){
+    const cal = calendars[k]; if (!cal) continue;
+    for (const r of (cal.ranges||[])){ if (inRange(date, r.from, r.to)) return k; }
+  }
+  for (const k of candidateKeys){
+    const cal = calendars[k]; if (!cal) continue;
+    for (const r of (cal.yearly_ranges||[])){ if (inRange(date, r.from, r.to)) return k; }
+  }
+  if ((DATA.calendars.HOLIDAY?.dates||[]).includes(ymd(date))) return "HOLIDAY";
+  const dow = date.getDay();
+  for (const k of candidateKeys){
+    const cal = calendars[k]; if (!cal) continue;
+    if ((cal.days||[]).includes(dow)) return k;
+  }
+  return candidateKeys[0] || 'WEEKDAY';
+}
+
+function fmtISO(dateObj){
+  const y = dateObj.getFullYear(), m = pad(dateObj.getMonth()+1), d = pad(dateObj.getDate());
+  const hh = pad(dateObj.getHours()), mm = pad(dateObj.getMinutes());
+  return `${y}-${m}-${d}T${hh}:${mm}`;
+}
+function dmy(dateObj){ return `${pad(dateObj.getDate())}-${pad(dateObj.getMonth()+1)}-${dateObj.getFullYear()}`; }
+function hhmm(dateObj){ return `${pad(dateObj.getHours())}${pad(dateObj.getMinutes())}`; }
+function renderCarrierUrl(templateKey, carrierKey, fromId, toId, depDateTime){
+  const t = DATA.templates[templateKey] || "";
+  const map = (DATA.labelMaps[carrierKey]||{});
+  const fromLabel = map[fromId] ?? encodeURIComponent(DATA.stops[fromId]?.name || fromId);
+  const toLabel   = map[toId]   ?? encodeURIComponent(DATA.stops[toId]?.name || toId);
+  return t.replaceAll('{fromLabel}', fromLabel).replaceAll('{toLabel}', toLabel)
+          .replaceAll('{fromSlug}', fromLabel).replaceAll('{toSlug}', toLabel)
+          .replaceAll('{iso}', fmtISO(depDateTime))
+          .replaceAll('{date_dmy}', dmy(depDateTime))
+          .replaceAll('{time_hhmm}', hhmm(depDateTime));
+}
+
+function tripsForLegOn(date, leg){
+  const cand = leg.carrier === 'ret' ? ['RET_SUMMER','WEEKDAY','WEEKEND'] : ['HOLIDAY','WEEKDAY','WEEKEND'];
+  const key = pickCalendarKey(new Date(date), DATA.calendars, cand);
+  return leg.tripsByCalendar?.[key] || [];
+}
+
+function computePathTrips(date, timeStr, bufferMin, windowMin, pathLegIds, bikeMinutes){
+  const start = toDate(date, timeStr);
+  const legs = pathLegIds.map(id => DATA.legs.find(x=>x.id===id)).filter(Boolean);
+  let t = new Date(start);
+  let i = 0;
+  for (; i<legs.length; i++){
+    if (legs[i].tripsByCalendar) break;
+    const lg = legs[i];
+    const dur = (lg.behavior==='flex' ? (lg.id.includes('bike') ? bikeMinutes : lg.duration_minutes) : lg.duration_minutes);
+    t = addMin(t, dur);
+  }
+  const firstScheduledIdx = i;
+  if (firstScheduledIdx >= legs.length) return [];
+  const first = legs[firstScheduledIdx];
+  const candidates = tripsForLegOn(start, first).map(x=>({dep:toDate(date,x.dep),arr:toDate(date,x.arr)}))
+                      .filter(dt => dt.dep >= t && dt.dep <= addMin(start, windowMin));
+  const results = [];
+  for (const c1 of candidates){
+    const seq = [];
+    let cursorDep = new Date(c1.dep);
+    for (let k=firstScheduledIdx-1; k>=0; k--){
+      const lg = legs[k];
+      const mins = (lg.behavior==='flex' ? (lg.id.includes('bike') ? bikeMinutes : lg.duration_minutes) : lg.duration_minutes);
+      const dep = addMin(cursorDep, -mins);
+      seq.unshift({leg:lg, dep, arr:addMin(dep, mins)});
+      cursorDep = new Date(dep);
+    }
+    seq.push({leg:first, dep:c1.dep, arr:c1.arr});
+    let curArr = new Date(c1.arr);
+    let ok = true;
+    for (let j=firstScheduledIdx+1; j<legs.length; j++){
+      const lg = legs[j];
+      if (!lg.tripsByCalendar){
+        const mins = (lg.behavior==='flex' ? lg.duration_minutes : lg.duration_minutes);
+        const dep = curArr;
+        const arr = addMin(dep, mins);
+        seq.push({leg:lg, dep, arr});
+        curArr = arr;
+        continue;
+      }
+      const trips = tripsForLegOn(start, lg).map(x=>({dep:toDate(date,x.dep),arr:toDate(date,x.arr)}));
+      const next = trips.find(p => p.dep >= addMin(curArr, bufferMin));
+      if (!next){ ok=false; break; }
+      seq.push({leg:lg, dep:next.dep, arr:next.arr});
+      curArr = next.arr;
+    }
+    if (ok){
+      results.push({ start: seq[0].dep, arrive: curArr, totalMin: Math.round((curArr - seq[0].dep)/60000), seq });
+    }
+  }
+  results.sort((a,b)=> a.start - b.start || a.totalMin - b.totalMin);
+  return results;
+}
+
+function render(){
+  const scen = document.getElementById('scenario').value;
+  const date = document.getElementById('date').value;
+  const time = document.getElementById('time').value;
+  const buffer = parseInt(document.getElementById('buffer').value||DATA.default_transfer_minutes,10);
+  const win = parseInt(document.getElementById('window').value,10);
+  const bike = parseInt(document.getElementById('bikemins').value||10,10);
+
+  const resHost = document.getElementById('results');
+  resHost.innerHTML='';
+
+  const paths = DATA.paths[scen] || [];
+  if (!paths.length){ resHost.textContent = 'No paths configured for this scenario.'; return; }
+
+  const allTrips = [];
+  for (const path of paths){
+    const trips = computePathTrips(date, time, buffer, win, path, bike);
+    for (const tr of trips) allTrips.push(tr);
+  }
+  if (!allTrips.length){ resHost.textContent = 'No feasible trips in the selected window.'; return; }
+  allTrips.sort((a,b)=> a.start - b.start || a.totalMin - b.totalMin);
+
+  allTrips.slice(0,10).forEach((trip, idx)=>{
+    const card = document.createElement('div');
+    card.className = 'card' + (idx===0 ? ' best' : '');
+    const header = `<div><strong>Leave:</strong> <span class="mono">${fmtHM(trip.start)}</span> — <strong>Arrive:</strong> <span class="mono">${fmtHM(trip.arrive)}</span> • <strong>Total:</strong> ${trip.totalMin} min ${idx===0?'⭐':''}</div>`;
+    const list = document.createElement('ol');
+    list.className = 'legs';
+
+    trip.seq.forEach((s, i)=>{
+      const prev = i>0 ? trip.seq[i-1] : null;
+      const gapMin = (prev && s.leg.tripsByCalendar) ? Math.max(0, Math.round((s.dep - prev.arr)/60000)) : null;
+      const modeBadge = `<span class="badge">${s.leg.mode}</span>`;
+      const fromName = DATA.stops[s.leg.from]?.name || s.leg.from;
+      const toName   = DATA.stops[s.leg.to]?.name || s.leg.to;
+      let linkHtml = '';
+      if (s.leg.tripsByCalendar && s.leg.linkTemplate && s.leg.carrier){
+        const href = renderCarrierUrl(s.leg.linkTemplate, s.leg.carrier, s.leg.from, s.leg.to, s.dep);
+        linkHtml = ` • <a href="${href}" target="_blank" rel="noopener">carrier</a>`;
+      }
+      const gapHtml = (gapMin!==null) ? ` • transfer ${gapMin} min${gapMin < parseInt(document.getElementById('buffer').value||DATA.default_transfer_minutes,10) ? ' <span class="warn">(tight)</span>' : ''}` : '';
+      const li = document.createElement('li');
+      li.innerHTML = `${modeBadge} ${fromName} → ${toName} | dep <span class="mono">${fmtHM(s.dep)}</span> → arr <span class="mono">${fmtHM(s.arr)}</span>${gapHtml}${linkHtml}`;
+      list.appendChild(li);
+    });
+
+    card.innerHTML = header;
+    card.appendChild(list);
+    resHost.appendChild(card);
+  });
+}
+
+function init(){
+  const now = new Date();
+  document.getElementById('date').value = now.toISOString().slice(0,10);
+  document.getElementById('time').value = now.toTimeString().slice(0,5);
+  document.getElementById('tzinfo').textContent = `Timezone: ${DATA.timezone}`;
+  document.getElementById('go').addEventListener('click', render);
+  render();
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+</script>
+</body>
+</html>
