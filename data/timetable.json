@@ -1,0 +1,524 @@
+{
+  "timezone": "Europe/Amsterdam",
+  "default_transfer_minutes": 4,
+  "presets": [
+    {
+      "id": "outbound",
+      "label": "Home \u2192 bol",
+      "origin": "home",
+      "destination": "bol"
+    },
+    {
+      "id": "return",
+      "label": "bol \u2192 Home",
+      "origin": "bol",
+      "destination": "home"
+    }
+  ],
+  "calendars": {
+    "WEEKDAY": {
+      "days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    "WEEKEND": {
+      "days": [
+        0,
+        6
+      ]
+    },
+    "RET_SUMMER": {
+      "yearly_ranges": [
+        {
+          "from": "--07-01",
+          "to": "--08-31"
+        }
+      ]
+    },
+    "RET_SUMMER_OVERRIDES": {
+      "ranges": [
+        {
+          "from": "2025-07-08",
+          "to": "2025-08-25"
+        }
+      ]
+    }
+  },
+  "scenarios": [
+    {
+      "id": "normal",
+      "label": "Normal",
+      "default": true
+    },
+    {
+      "id": "woerden_issue",
+      "label": "Issue near Woerden/Gouda"
+    },
+    {
+      "id": "rotterdam_issue",
+      "label": "Issue at/around Rotterdam"
+    },
+    {
+      "id": "rotterdam_hard",
+      "label": "Rotterdam + Schiedam out (use Metro\u2192DH)"
+    }
+  ],
+  "templates": {
+    "ns_direct": "https://www.ns.nl/reisplanner/#/?vertrek={fromLabel}&vertrektype=treinstation&aankomst={toLabel}&aankomsttype=treinstation&type=vertrek&tijd={iso}&firstMileModality=PUBLIC_TRANSPORT&lastMileModality=PUBLIC_TRANSPORT",
+    "ret_metro": "https://www.ret.nl/home/reizen/reisplanner/details/{fromSlug}/n-a/{toSlug}/{date_dmy}/{time_hhmm}/vertrek/snelste-route/1-2-0-3/geen-extra-overstaptijd/0/0/niet-extra-toegankelijk.html"
+  },
+  "labelMaps": {
+    "ns": {
+      "schiedam_c": "Schiedam%20Centrum",
+      "rotterdam_c": "Rotterdam%20Centraal",
+      "utrecht_c": "Utrecht%20Centraal",
+      "denhaag_c": "Den%20Haag%20Centraal",
+      "amsterdam_zuid": "Amsterdam%20Zuid"
+    },
+    "ret": {
+      "pernis_metro": "metrostation-pernis_pernis-rotterdam",
+      "schiedam_c": "metrostation-schiedam-centrum_schiedam",
+      "beurs": "beurs_rotterdam"
+    }
+  },
+  "stops": {
+    "home": {
+      "name": "Home"
+    },
+    "bol": {
+      "name": "bol"
+    },
+    "pernis_metro": {
+      "name": "Pernis (Metro)"
+    },
+    "schiedam_c": {
+      "name": "Schiedam Centrum"
+    },
+    "rotterdam_c": {
+      "name": "Rotterdam Centraal"
+    },
+    "utrecht_c": {
+      "name": "Utrecht Centraal"
+    },
+    "denhaag_c": {
+      "name": "Den Haag Centraal"
+    },
+    "amsterdam_zuid": {
+      "name": "Amsterdam Zuid"
+    },
+    "beurs": {
+      "name": "Beurs (Metro)"
+    },
+    "papendorp_zuid": {
+      "name": "Papendorp Zuid"
+    }
+  },
+  "legs": [
+    {
+      "id": "bike_home_pernis",
+      "from": "home",
+      "to": "pernis_metro",
+      "mode": "bike",
+      "behavior": "flex",
+      "duration_minutes": 10
+    },
+    {
+      "id": "metro_pernis_schiedam",
+      "from": "pernis_metro",
+      "to": "schiedam_c",
+      "mode": "metro",
+      "carrier": "ret",
+      "linkTemplate": "ret_metro",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "06:10",
+            "arr": "06:22"
+          },
+          {
+            "dep": "06:20",
+            "arr": "06:32"
+          },
+          {
+            "dep": "06:30",
+            "arr": "06:42"
+          },
+          {
+            "dep": "06:40",
+            "arr": "06:52"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "07:00",
+            "arr": "07:12"
+          },
+          {
+            "dep": "07:15",
+            "arr": "07:27"
+          },
+          {
+            "dep": "07:30",
+            "arr": "07:42"
+          }
+        ],
+        "RET_SUMMER": [
+          {
+            "dep": "06:15",
+            "arr": "06:27"
+          },
+          {
+            "dep": "06:30",
+            "arr": "06:42"
+          },
+          {
+            "dep": "06:45",
+            "arr": "06:57"
+          }
+        ]
+      }
+    },
+    {
+      "id": "train_schiedam_rotterdam",
+      "from": "schiedam_c",
+      "to": "rotterdam_c",
+      "mode": "train",
+      "carrier": "ns",
+      "linkTemplate": "ns_direct",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "06:22",
+            "arr": "06:28"
+          },
+          {
+            "dep": "06:37",
+            "arr": "06:43"
+          },
+          {
+            "dep": "06:52",
+            "arr": "06:58"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "07:07",
+            "arr": "07:13"
+          },
+          {
+            "dep": "07:22",
+            "arr": "07:28"
+          }
+        ]
+      },
+      "blocked_by": [
+        "rotterdam_hard"
+      ]
+    },
+    {
+      "id": "train_rotterdam_utrecht_direct",
+      "from": "rotterdam_c",
+      "to": "utrecht_c",
+      "mode": "train",
+      "carrier": "ns",
+      "linkTemplate": "ns_direct",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "06:28",
+            "arr": "07:03"
+          },
+          {
+            "dep": "06:58",
+            "arr": "07:34"
+          },
+          {
+            "dep": "07:28",
+            "arr": "08:03"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "07:28",
+            "arr": "08:05"
+          },
+          {
+            "dep": "07:58",
+            "arr": "08:36"
+          }
+        ]
+      },
+      "blocked_by": [
+        "woerden_issue",
+        "rotterdam_issue",
+        "rotterdam_hard"
+      ]
+    },
+    {
+      "id": "train_rotterdam_amsterdamzuid",
+      "from": "rotterdam_c",
+      "to": "amsterdam_zuid",
+      "mode": "train",
+      "carrier": "ns",
+      "linkTemplate": "ns_direct",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "06:19",
+            "arr": "07:09"
+          },
+          {
+            "dep": "06:49",
+            "arr": "07:39"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "07:19",
+            "arr": "08:09"
+          }
+        ]
+      },
+      "blocked_by": [
+        "rotterdam_issue",
+        "rotterdam_hard"
+      ]
+    },
+    {
+      "id": "train_amsterdamzuid_utrecht",
+      "from": "amsterdam_zuid",
+      "to": "utrecht_c",
+      "mode": "train",
+      "carrier": "ns",
+      "linkTemplate": "ns_direct",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "07:12",
+            "arr": "07:42"
+          },
+          {
+            "dep": "07:42",
+            "arr": "08:12"
+          },
+          {
+            "dep": "08:12",
+            "arr": "08:42"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "08:12",
+            "arr": "08:42"
+          }
+        ]
+      }
+    },
+    {
+      "id": "train_rotterdam_denhaag",
+      "from": "rotterdam_c",
+      "to": "denhaag_c",
+      "mode": "train",
+      "carrier": "ns",
+      "linkTemplate": "ns_direct",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "06:10",
+            "arr": "06:35"
+          },
+          {
+            "dep": "06:25",
+            "arr": "06:50"
+          },
+          {
+            "dep": "06:55",
+            "arr": "07:20"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "07:10",
+            "arr": "07:35"
+          }
+        ]
+      },
+      "blocked_by": [
+        "rotterdam_hard"
+      ]
+    },
+    {
+      "id": "train_denhaag_utrecht",
+      "from": "denhaag_c",
+      "to": "utrecht_c",
+      "mode": "train",
+      "carrier": "ns",
+      "linkTemplate": "ns_direct",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "06:40",
+            "arr": "07:18"
+          },
+          {
+            "dep": "07:00",
+            "arr": "07:38"
+          },
+          {
+            "dep": "07:20",
+            "arr": "07:58"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "07:20",
+            "arr": "07:58"
+          }
+        ]
+      }
+    },
+    {
+      "id": "metro_pernis_beurs",
+      "from": "pernis_metro",
+      "to": "beurs",
+      "mode": "metro",
+      "carrier": "ret",
+      "linkTemplate": "ret_metro",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "06:05",
+            "arr": "06:30"
+          },
+          {
+            "dep": "06:20",
+            "arr": "06:45"
+          },
+          {
+            "dep": "06:35",
+            "arr": "07:00"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "07:05",
+            "arr": "07:30"
+          },
+          {
+            "dep": "07:20",
+            "arr": "07:45"
+          }
+        ],
+        "RET_SUMMER": [
+          {
+            "dep": "06:10",
+            "arr": "06:35"
+          },
+          {
+            "dep": "06:25",
+            "arr": "06:50"
+          }
+        ]
+      }
+    },
+    {
+      "id": "metro_beurs_denhaag",
+      "from": "beurs",
+      "to": "denhaag_c",
+      "mode": "metro",
+      "carrier": "ret",
+      "linkTemplate": "ret_metro",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "06:35",
+            "arr": "07:20"
+          },
+          {
+            "dep": "06:50",
+            "arr": "07:35"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "07:35",
+            "arr": "08:20"
+          }
+        ],
+        "RET_SUMMER": [
+          {
+            "dep": "06:40",
+            "arr": "07:25"
+          }
+        ]
+      }
+    },
+    {
+      "id": "bus_shuttle_utrecht_bol",
+      "from": "utrecht_c",
+      "to": "bol",
+      "mode": "bus",
+      "carrier": "shuttle",
+      "linkTemplate": "ns_direct",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "07:15",
+            "arr": "07:27"
+          },
+          {
+            "dep": "07:30",
+            "arr": "07:42"
+          },
+          {
+            "dep": "07:45",
+            "arr": "07:57"
+          }
+        ],
+        "WEEKEND": []
+      }
+    },
+    {
+      "id": "bus_qbuzz_utrecht_papendorp",
+      "from": "utrecht_c",
+      "to": "papendorp_zuid",
+      "mode": "bus",
+      "carrier": "qbuzz",
+      "linkTemplate": "ns_direct",
+      "tripsByCalendar": {
+        "WEEKDAY": [
+          {
+            "dep": "07:12",
+            "arr": "07:22"
+          },
+          {
+            "dep": "07:24",
+            "arr": "07:34"
+          },
+          {
+            "dep": "07:36",
+            "arr": "07:46"
+          }
+        ],
+        "WEEKEND": [
+          {
+            "dep": "08:00",
+            "arr": "08:12"
+          }
+        ]
+      }
+    },
+    {
+      "id": "walk_papendorp_bol",
+      "from": "papendorp_zuid",
+      "to": "bol",
+      "mode": "walk",
+      "behavior": "flex",
+      "duration_minutes": 8
+    }
+  ]
+}

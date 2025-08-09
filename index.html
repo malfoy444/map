@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Commute Planner Mockup</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="manifest" href="./pwa/manifest.webmanifest">
+</head>
+<body>
+<header>
+  <h1>🚆 Commute Planner (Mockup)</h1>
+  <div class="muted tiny">Modular demo • Offline-capable when hosted over HTTPS</div>
+</header>
+
+<div class="controls">
+  <div class="row">
+    <label>Preset</label>
+    <select id="preset"></select>
+  </div>
+  <div class="row">
+    <label>Date</label>
+    <input id="date" type="date">
+    <label>Time</label>
+    <input id="time" type="time" step="60">
+  </div>
+  <div class="row">
+    <label>Buffer</label>
+    <input id="buffer" type="number" min="0" max="15" value="4" style="width:4rem"> min
+  </div>
+  <div class="row">
+    <label>Window</label>
+    <select id="window">
+      <option value="60">next 1h</option>
+      <option value="120" selected>next 2h</option>
+      <option value="180">next 3h</option>
+    </select>
+  </div>
+  <div class="row">
+    <label>Bike duration</label>
+    <input id="bike" type="number" min="5" max="25" value="10" style="width:4rem"> min
+  </div>
+  <div class="row">
+    <label>Scenario</label>
+    <select id="scenario"></select>
+  </div>
+  <button id="search" class="primary">Search</button>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="row" style="justify-content:space-between;">
+      <div><strong>Results</strong></div>
+      <div class="tiny muted">Sorted by leave time → total duration</div>
+    </div>
+    <div id="results" class="list"></div>
+  </div>
+  <div class="card">
+    <strong>Notes</strong>
+    <ul class="tiny">
+      <li>Calendar chooser supports <em>weekday/weekend</em> plus carrier ranges like <strong>RET_SUMMER</strong> (yearly July–Aug).</li>
+      <li>Carrier links come from templates with real date/time/stations.</li>
+      <li>Bike is flexible; tweak minutes to update “leave home.”</li>
+      <li>Mock dataset; replace with real times later.</li>
+    </ul>
+    <div class="tiny muted">Build: modular v0.1</div>
+  </div>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "ns": {
+    "schiedam_c": "Schiedam%20Centrum",
+    "rotterdam_c": "Rotterdam%20Centraal",
+    "utrecht_c": "Utrecht%20Centraal",
+    "denhaag_c": "Den%20Haag%20Centraal",
+    "amsterdam_zuid": "Amsterdam%20Zuid"
+  },
+  "ret": {
+    "pernis_metro": "metrostation-pernis_pernis-rotterdam",
+    "schiedam_c": "metrostation-schiedam-centrum_schiedam",
+    "beurs": "beurs_rotterdam"
+  },
+  "qbuzz": {},
+  "shuttle": {}
+}
